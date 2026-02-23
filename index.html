@@ -43,7 +43,7 @@
             background-color: white;
             position: relative;
             box-shadow: 0 0 100px rgba(0,0,0,0.1);
-            overflow: hidden; /* Clips any sliding overlays */
+            overflow: hidden;
         }
 
         /* Main area takes remaining height but respects footer space */
@@ -140,14 +140,14 @@
             min-height: 4rem;
         }
 
-        /* Strict Overlay Logic to prevent "annoying bleed" */
+        /* Overlays moved to Absolute position and display: none */
         .feedback-sheet, .picker-overlay {
             position: absolute;
             inset: 0;
             background: rgba(15, 23, 42, 0.5);
             backdrop-filter: blur(4px);
             z-index: 100;
-            display: none; /* Using none instead of hidden to prevent any artifacts */
+            display: none; 
             flex-direction: column;
             justify-content: flex-end;
         }
@@ -261,10 +261,10 @@
 
         <!-- SECTION: LEARN -->
         <section id="section-learn" class="hidden space-y-6 pt-2">
-            <div id="learn-modules" class="space-y-6"></div>
+            <div id="learn-modules" class="space-y-6 pb-20"></div>
         </section>
 
-        <!-- SECTION: CANVAS (PRACTICE) - Optimized Vertical Stack to prevent scrolling -->
+        <!-- SECTION: CANVAS (PRACTICE) -->
         <section id="section-write" class="hidden h-full flex flex-col pt-2 overflow-hidden">
             <!-- Top Controls -->
             <div class="flex-shrink-0">
@@ -283,7 +283,7 @@
                 <div class="text-center mb-1">
                     <p id="canvas-context-tag" class="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1 opacity-60 leading-none">Practice Mode</p>
                     <p id="current-pinyin" class="text-rose-600 font-black text-xl tracking-widest leading-none mb-1">...</p>
-                    <h2 id="current-char" class="text-5xl font-black text-slate-900 leading-none">...</h2>
+                    <h2 id="current-char" class="text-5xl md:text-6xl font-black text-slate-900 leading-none">...</h2>
                 </div>
             </div>
 
@@ -345,6 +345,7 @@
             <div id="quiz-options" class="space-y-4 flex-shrink-0"></div>
         </section>
 
+        <!-- SECTION: DICT -->
         <section id="section-dict" class="hidden space-y-8 pt-2">
             <div class="sticky top-0 bg-white/90 backdrop-blur-md pt-2 pb-4 z-10">
                 <div class="relative">
@@ -356,6 +357,7 @@
             <div id="dictionary-list" class="space-y-4"></div>
         </section>
 
+        <!-- SECTION: PROFILE -->
         <section id="section-profile" class="hidden space-y-10 pb-12 pt-2">
             <div class="flex flex-col items-center py-10">
                 <div class="w-28 h-28 bg-rose-600 rounded-[48px] flex items-center justify-center border-[8px] border-white shadow-2xl mb-6 text-white"><span id="profile-level-tag" class="text-3xl font-black">HSK 1</span></div>
@@ -366,7 +368,7 @@
         </section>
     </main>
 
-    <!-- FLOATING OVERLAYS -->
+    <!-- OVERLAYS (Moved out of stack for clean layering) -->
     <div id="quiz-feedback-sheet" class="feedback-sheet">
         <div class="flex flex-col bg-white rounded-t-[32px] p-8 shadow-2xl max-h-[85vh]">
             <div class="flex items-center gap-6 mb-8 flex-shrink-0">
@@ -472,7 +474,15 @@
     function switchTab(id) {
         if (id === currentTab) return;
         lastTab = currentTab; currentTab = id;
-        if (id === 'write' && canvasMode !== 'practice' && canvasMode !== 'dictionary') { canvasMode = 'freeroam'; currentLessonQueue = []; }
+        
+        // Hide open overlays
+        togglePicker(false);
+        document.getElementById('quiz-feedback-sheet').classList.remove('open');
+
+        if (id === 'write' && canvasMode !== 'practice' && canvasMode !== 'dictionary') {
+            canvasMode = 'freeroam';
+            currentLessonQueue = [];
+        }
         document.getElementById('app-header').style.display = (id === 'quiz') ? 'none' : 'block';
         ['home', 'learn', 'write', 'dict', 'profile', 'quiz'].forEach(s => {
             const el = document.getElementById(`section-${s}`); if (el) el.classList.add('hidden');
@@ -480,10 +490,18 @@
         });
         document.getElementById(`section-${id}`).classList.remove('hidden');
         if (document.getElementById(`tab-${id}`)) document.getElementById(`tab-${id}`).classList.add('active');
+        const titles = { home: 'Learning Dashboard', learn: 'HSK', dict: 'Dictionary', profile: 'Statistics', write: 'Canvas' };
+        const subs = { home: 'Welcome Back', learn: 'Practice and Learn', dict: 'Search & Explore', profile: 'Your Progress', write: 'Practice Writing' };
+        document.getElementById('header-title').innerText = titles[id] || 'Mandarin Master';
+        document.getElementById('header-subtitle').innerText = subs[id] || 'Path to Fluency';
+        if (id === 'home') document.getElementById('app-progress-dots').classList.remove('hidden');
+        else document.getElementById('app-progress-dots').classList.add('hidden');
+        
         const footer = document.getElementById('app-footer');
         if (id === 'quiz') footer.style.display = 'none';
         else if (id === 'write') footer.style.display = (canvasMode === 'freeroam') ? 'block' : 'none';
         else footer.style.display = 'block';
+
         if (id === 'write') { updateCanvasModeUI(); setTimeout(resizeCanvas, 100); }
         if (id === 'learn') renderSyllabusUI();
     }
@@ -498,12 +516,12 @@
         else { chooseBtn.classList.remove('hidden'); footer.style.display = 'block'; }
     }
 
-    function updateStylusSize(val) { stylusSize = parseInt(val); document.getElementById('stylus-value').innerText = val; ctx.lineWidth = stylusSize; }
+    function updateStylusSize(val) { stylusSize = parseInt(val); document.getElementById('stylus-value').innerText = val; if (ctx) ctx.lineWidth = stylusSize; }
 
     function togglePicker(show) {
         const overlay = document.getElementById('picker-overlay');
-        if (show) { overlay.classList.add('open'); document.getElementById('picker-search-input').value = ""; populatePicker(); }
-        else overlay.classList.remove('open');
+        if (show) { overlay.style.display = 'flex'; setTimeout(() => overlay.classList.add('open'), 10); document.getElementById('picker-search-input').value = ""; populatePicker(); }
+        else { overlay.classList.remove('open'); setTimeout(() => overlay.style.display = 'none', 400); }
     }
 
     function filterPicker() { populatePicker(document.getElementById('picker-search-input').value.toLowerCase().trim()); }
@@ -515,8 +533,7 @@
     }
 
     function appendPickerChunk() {
-        const list = document.getElementById('picker-list');
-        const chunk = pickerSearchData.slice(pickerRenderCount, pickerRenderCount + RENDER_CHUNK_SIZE);
+        const list = document.getElementById('picker-list'), chunk = pickerSearchData.slice(pickerRenderCount, pickerRenderCount + RENDER_CHUNK_SIZE);
         chunk.forEach(item => {
             const btn = document.createElement('button'); btn.className = "w-full p-5 bg-white border border-slate-100 rounded-3xl flex items-center justify-between active:scale-[0.98] transition-all shadow-sm mb-2";
             btn.onclick = () => { canvasMode = 'freeroam'; selectChar(item.char, item.pinyin, item.mean); togglePicker(false); };
@@ -524,6 +541,13 @@
             list.appendChild(btn);
         });
         pickerRenderCount += chunk.length;
+    }
+
+    function getProgStyle(perc) {
+        if (perc === 0) return { bg: 'bg-slate-50', text: 'text-slate-400', border: 'border-slate-100' };
+        if (perc < 40) return { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100' };
+        if (perc < 75) return { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' };
+        return { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100' };
     }
 
     function toggleHskFocus(index) {
@@ -581,6 +605,7 @@
 
     function renderQuizQuestion() {
         const q = quizState.questions[quizState.currentIndex]; quizState.answered = false;
+        document.getElementById('quiz-feedback-sheet').classList.add('open'); // Re-init
         document.getElementById('quiz-feedback-sheet').classList.remove('open'); document.getElementById('quiz-results').classList.add('hidden');
         document.getElementById('quiz-question-container').classList.remove('hidden'); document.getElementById('quiz-options').classList.remove('hidden');
         document.getElementById('quiz-hint-box').classList.add('hidden'); document.getElementById('main-content').scrollTop = 0;
@@ -601,13 +626,14 @@
     function handleQuizAnswer(selected, btn) {
         if (quizState.answered) return; quizState.answered = true;
         const q = quizState.questions[quizState.currentIndex], isCorrect = selected === q.correctVal;
+        const feedbackSheet = document.getElementById('quiz-feedback-sheet');
         if (isCorrect) { btn.classList.add('correct'); quizState.score++; if (q.word) quizState.correctChars.push(q.word.char); document.getElementById('feedback-icon').innerHTML = "✨"; document.getElementById('feedback-icon').className = "w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm bg-green-100 text-green-600"; document.getElementById('feedback-title').innerText = "Excellent!"; document.getElementById('feedback-title').className = "text-[10px] font-black uppercase tracking-widest text-green-600"; }
         else { btn.classList.add('wrong'); document.getElementById('feedback-icon').innerHTML = "🔎"; document.getElementById('feedback-icon').className = "w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm bg-rose-100 text-rose-600"; document.getElementById('feedback-title').innerText = "Look Closer"; document.getElementById('feedback-title').className = "text-[10px] font-black uppercase tracking-widest text-rose-600"; }
         document.getElementById('feedback-correct-val').innerText = q.correctVal; document.getElementById('feedback-why').innerText = q.hint;
         if (q.mean || q.word?.mean) { document.getElementById('feedback-full-trans-box').classList.remove('hidden'); document.getElementById('feedback-full-trans').innerText = q.mean || q.word?.mean || ""; } else document.getElementById('feedback-full-trans-box').classList.add('hidden');
         const breakdown = document.getElementById('feedback-breakdown'); breakdown.innerHTML = '';
         q.options.forEach(opt => { const row = document.createElement('div'); row.className = "flex justify-between items-center py-2 border-b border-slate-50 last:border-0"; let label = opt, meaning = ""; if (q.type !== 'hanzi_to_mean') { const match = masterData.find(m => m.char === opt); label = match ? `${opt} (${match.pinyin})` : opt; meaning = match ? match.mean.split(',')[0] : ""; } row.innerHTML = `<div class="flex items-center gap-2"><span class="text-xs ${opt === q.correctVal ? 'text-green-600' : (opt === selected ? 'text-rose-500' : 'text-slate-700')} font-bold">${label}</span>${opt === q.correctVal ? '✅' : (opt === selected ? '❌' : '')}</div><span class="text-[9px] text-slate-400 font-medium uppercase text-right ml-4">${meaning}</span>`; breakdown.appendChild(row); });
-        document.getElementById('quiz-feedback-sheet').classList.add('open');
+        feedbackSheet.classList.add('open');
     }
 
     function quizNextStep() { quizState.currentIndex++; if (quizState.currentIndex < quizState.questions.length) renderQuizQuestion(); else showQuizResults(); }
