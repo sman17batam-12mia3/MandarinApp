@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Mandarin Master - HSK 3.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+        
+        :root {
+            --brand-red: #e11d48;
+            --brand-red-light: #fff1f2;
+            --bg-main: #f8fafc;
+        }
+
+        body { 
+            font-family: 'Noto Sans SC', sans-serif; 
+            background-color: var(--bg-main);
+            height: 100vh;
+            overflow: hidden;
+            color: #1e293b;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .app-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 500px;
+            margin: 0 auto;
+            background-color: white;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0,0,0,0.05);
+        }
+
+        main { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            padding-bottom: 100px; /* Space for nav */
+            scrollbar-width: none;
+        }
+        main::-webkit-scrollbar { display: none; }
+
+        section {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .glass-card {
+            background: white;
+            border: 1px solid #f1f5f9;
+            border-radius: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .drawing-zone { 
+            position: relative; 
+            width: 100%; 
+            aspect-ratio: 1 / 1; 
+            background: #fff; 
+            border: 2px solid #f1f5f9; 
+            border-radius: 32px; 
+            overflow: hidden; 
+        }
+
+        .canvas-grid { 
+            position: absolute; 
+            inset: 0; 
+            pointer-events: none; 
+            background-image: 
+                linear-gradient(to right, #fee2e2 1px, transparent 1px), 
+                linear-gradient(to bottom, #fee2e2 1px, transparent 1px); 
+            background-size: 50% 50%; 
+            opacity: 0.6; 
+        }
+        .canvas-grid::after { 
+            content: ''; 
+            position: absolute; 
+            inset: 0; 
+            background-image: 
+                linear-gradient(45deg, transparent 49.5%, #fee2e2 50%, transparent 50.5%), 
+                linear-gradient(-45deg, transparent 49.5%, #fee2e2 50%, transparent 50.5%); 
+            background-size: 100% 100%; 
+        }
+
+        .nav-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: #94a3b8;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 0.7rem;
+            font-weight: 700;
+            flex: 1;
+        }
+        .nav-link.active { color: var(--brand-red); }
+        .nav-link.active svg { transform: translateY(-2px); }
+
+        ruby { ruby-align: center; display: inline-flex; flex-direction: column-reverse; vertical-align: middle; }
+        rt { font-size: 0.45em; color: var(--brand-red); font-weight: 900; letter-spacing: 0.02em; padding-bottom: 2px; line-height: 1; }
+
+        .quiz-option {
+            width: 100%;
+            padding: 1.25rem;
+            margin-bottom: 0.75rem;
+            background: #f8fafc;
+            border: 2px solid #f1f5f9;
+            border-radius: 20px;
+            font-weight: 700;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 4rem;
+        }
+        .quiz-option:active { transform: scale(0.98); background: #f1f5f9; }
+        .quiz-option.correct { background: #dcfce7; border-color: #22c55e; color: #166534; }
+        .quiz-option.wrong { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+
+        .feedback-sheet {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 32px 32px 0 0;
+            box-shadow: 0 -20px 40px rgba(0,0,0,0.1);
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 50;
+            padding: 2rem;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .feedback-sheet.open { transform: translateY(0); }
+
+        .picker-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            justify-content: flex-end;
+        }
+        .picker-sheet {
+            background: white;
+            border-radius: 32px 32px 0 0;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .picker-overlay.open { display: flex; }
+        .picker-overlay.open .picker-sheet { transform: translateY(0); }
+
+        .prog-dot { height: 6px; flex: 1; border-radius: 10px; background: #e2e8f0; transition: all 0.3s; }
+        .prog-dot.active { background: var(--brand-red); }
+
+        .module-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out; }
+        .module-content.open { max-height: 1000000px; } /* Vastly increased to prevent scroll clipping */
+    </style>
+</head>
+<body>
+
+<!-- Startup View -->
+<div id="start-screen" class="fixed inset-0 bg-white z-[100] flex items-center justify-center p-8">
+    <div class="text-center w-full max-w-xs">
+        <div class="w-24 h-24 bg-rose-50 rounded-[32px] flex items-center justify-center mx-auto mb-6 shadow-sm border border-rose-100">
+            <span class="text-5xl">🏮</span>
+        </div>
+        <h1 class="text-3xl font-black text-slate-900 tracking-tight mb-2">Mandarin Master</h1>
+        <p class="text-slate-400 text-sm font-medium mb-12">Learn Mandarin From Zero</p>
+        <button onclick="bootApp()" class="w-full py-5 bg-rose-600 text-white font-bold rounded-2xl shadow-xl shadow-rose-200 active:scale-95 transition-all">
+            Start Learning
+        </button>
+    </div>
+</div>
+
+<div class="app-shell">
+    <!-- Main Header -->
+    <header id="app-header" class="px-6 pt-12 pb-6 bg-white sticky top-0 z-40">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 id="header-title" class="text-xs font-black text-rose-600 uppercase tracking-[0.2em]">Learning Dashboard</h2>
+                <h1 id="header-subtitle" class="text-2xl font-black text-slate-900">Welcome Back</h1>
+            </div>
+            <div id="status-badges" class="flex gap-1"></div>
+        </div>
+    </header>
+
+    <main id="main-content" class="px-6">
+        
+        <!-- SECTION: HOME -->
+        <section id="section-home" class="space-y-6">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass-card p-5 bg-blue-50/50 border-blue-100">
+                    <p class="text-[10px] font-black text-blue-400 uppercase tracking-wider mb-1">Vocabulary</p>
+                    <p id="stat-learned" class="text-2xl font-black text-blue-700">0</p>
+                    <p class="text-[9px] text-blue-400 font-bold uppercase mt-1">Words Learned</p>
+                </div>
+                <div class="glass-card p-5 bg-purple-50/50 border-purple-100">
+                    <p class="text-[10px] font-black text-purple-400 uppercase tracking-wider mb-1">Current</p>
+                    <p id="stat-level" class="text-2xl font-black text-purple-700">HSK 1</p>
+                    <p class="text-[9px] text-purple-400 font-bold uppercase mt-1">Rank Level</p>
+                </div>
+            </div>
+
+            <div id="wotd-card" class="p-8 bg-slate-900 text-white rounded-[32px] relative overflow-hidden shadow-2xl cursor-pointer group active:scale-[0.98] transition-transform">
+                <div class="relative z-10">
+                    <div class="inline-block px-3 py-1 bg-rose-600 rounded-full text-[9px] font-black uppercase tracking-widest mb-6">Daily Word</div>
+                    <p id="wotd-pinyin" class="text-xl font-medium text-slate-400 mb-1">...</p>
+                    <h3 id="wotd-char" class="text-6xl font-black mb-4">...</h3>
+                    <p id="wotd-mean" class="text-slate-300 text-sm font-medium italic opacity-80">...</p>
+                </div>
+                <div id="wotd-bg" class="absolute -right-8 -bottom-8 text-[12rem] text-white/[0.03] font-black leading-none pointer-events-none group-hover:scale-110 transition-transform duration-700">...</div>
+            </div>
+            
+            <button onclick="switchTab('learn')" class="w-full py-5 bg-slate-100 text-slate-800 font-bold rounded-2xl flex items-center justify-center gap-3 active:bg-slate-200 transition-colors">
+                Explore Curriculum <span class="text-xl">→</span>
+            </button>
+        </section>
+
+        <!-- SECTION: LEARN (SYLLABUS) -->
+        <section id="section-learn" class="hidden space-y-6">
+            <div id="learn-modules" class="space-y-4"></div>
+        </section>
+
+        <!-- SECTION: CANVAS (PRACTICE) -->
+        <section id="section-write" class="hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div id="canvas-back-container" class="w-10">
+                    <button onclick="exitCanvas()" class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 active:scale-90 transition-transform">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                </div>
+                
+                <div class="text-center flex-grow">
+                    <p id="canvas-context-tag" class="text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1">Practice Mode</p>
+                    <p id="current-pinyin" class="text-rose-600 font-black text-lg tracking-widest leading-none">...</p>
+                    <h2 id="current-char" class="text-5xl font-black text-slate-900">...</h2>
+                </div>
+
+                <button onclick="playVoice(document.getElementById('current-char').innerText)" class="w-10 h-10 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center active:scale-90 transition-transform">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                </button>
+            </div>
+
+            <div class="drawing-zone mb-4">
+                <div class="canvas-grid"></div>
+                <canvas id="drawing-canvas"></canvas>
+            </div>
+
+            <p id="current-mean" class="text-center text-slate-400 text-sm font-medium italic mb-6 px-4 leading-relaxed h-10 overflow-hidden">...</p>
+            
+            <div class="flex flex-col gap-3">
+                <div class="flex gap-3">
+                    <button onclick="clearCanvas()" class="flex-1 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl active:bg-slate-200 transition-colors">Clear</button>
+                    <button id="btn-next-word" onclick="nextWord()" class="flex-[2] py-4 bg-rose-600 text-white font-bold rounded-2xl shadow-lg shadow-rose-100 active:bg-rose-700 transition-all">Next Step</button>
+                </div>
+                <button id="btn-canvas-choose" onclick="togglePicker(true)" class="hidden w-full py-4 bg-slate-900 text-white font-black text-[11px] uppercase tracking-widest rounded-2xl shadow-xl active:bg-slate-800 transition-all flex items-center justify-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-10.4 8.38 8.38 0 0 1 3.8.9"/><path d="m21 3-9 9"/><path d="M15 3h6v6"/></svg>
+                    Choose Word to Practice
+                </button>
+            </div>
+        </section>
+
+        <!-- SECTION: QUIZ -->
+        <section id="section-quiz" class="hidden pb-20">
+            <div class="flex items-center justify-between mb-8">
+                <button onclick="exitQuiz()" class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 active:scale-90 transition-transform">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <div class="flex items-center gap-2 flex-grow mx-4" id="quiz-dots"></div>
+                <div class="w-10"></div> <!-- Placeholder for balance -->
+            </div>
+
+            <div id="quiz-question-container" class="mb-8">
+                <div class="flex justify-between items-start mb-4">
+                    <span id="quiz-prompt" class="text-[10px] font-black text-rose-500 uppercase tracking-widest">TRANSLATE THIS</span>
+                    <button onclick="showQuizHint()" class="text-xs bg-amber-50 text-amber-600 px-3 py-1 rounded-full font-bold border border-amber-100">💡 Hint</button>
+                </div>
+                
+                <div id="quiz-question-box" class="min-h-[160px] flex flex-col items-center justify-center text-center">
+                    <div id="quiz-dialog-area" class="w-full hidden space-y-3"></div>
+                    <h2 id="quiz-question" class="font-black text-slate-900 leading-tight">...</h2>
+                </div>
+                <div id="quiz-hint-box" class="hidden mt-4 p-3 bg-amber-50 text-amber-700 text-xs rounded-xl border border-amber-100 italic"></div>
+            </div>
+
+            <div id="quiz-options" class="space-y-3"></div>
+
+            <div id="quiz-results" class="hidden text-center py-10 space-y-8">
+                <div class="w-32 h-32 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-xl">
+                    <span class="text-6xl">🏆</span>
+                </div>
+                <div>
+                    <h2 class="text-3xl font-black text-slate-900 mb-2">Quiz Complete!</h2>
+                    <p class="text-slate-400 font-medium">Your progress has been synced.</p>
+                </div>
+                <div class="p-8 bg-rose-50 rounded-[32px] border border-rose-100">
+                    <p class="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-2">Total Score</p>
+                    <p id="final-score" class="text-6xl font-black text-rose-600">0/0</p>
+                </div>
+                <button onclick="switchTab('learn')" class="w-full py-5 bg-slate-900 text-white font-bold rounded-2xl active:scale-95 transition-all">Continue Journey</button>
+            </div>
+        </section>
+
+        <!-- SECTION: DICT -->
+        <section id="section-dict" class="hidden space-y-6">
+            <div class="sticky top-0 bg-white/90 backdrop-blur-md pt-2 pb-4 z-10">
+                <div class="relative">
+                    <input type="text" id="search-input" oninput="debouncedSearch()" placeholder="Search HSK vocabulary..." class="w-full p-5 pl-12 rounded-2xl bg-slate-50 border-2 border-transparent focus:border-rose-400 focus:bg-white outline-none transition-all font-medium text-slate-700">
+                    <svg class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <p id="search-meta" class="text-[10px] text-slate-400 mt-3 font-black px-2 uppercase tracking-widest"></p>
+            </div>
+            <div id="dictionary-list" class="space-y-3"></div>
+        </section>
+
+        <!-- SECTION: PROFILE -->
+        <section id="section-profile" class="hidden space-y-8 pb-12">
+            <div class="flex flex-col items-center py-8">
+                <div class="w-28 h-28 bg-rose-600 rounded-[40px] flex items-center justify-center border-8 border-white shadow-2xl mb-4 text-white">
+                    <span id="profile-level-tag" class="text-3xl font-black">HSK 1</span>
+                </div>
+                <h3 class="text-2xl font-black text-slate-900">Scholar</h3>
+                <p class="text-slate-400 text-sm font-medium">Language Mastery: <span id="mastery-status" class="text-rose-600">Novice</span></p>
+            </div>
+
+            <div id="progress-container" class="space-y-6"></div>
+
+            <div class="pt-8 border-t border-slate-100 flex flex-col gap-4">
+                <button onclick="localStorage.clear(); window.location.reload();" class="w-full py-4 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-rose-600 transition-colors">Reset All Learning Data</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Quiz Feedback Sheet -->
+    <div id="quiz-feedback-sheet" class="feedback-sheet">
+        <div class="flex items-center gap-4 mb-6">
+            <div id="feedback-icon" class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm"></div>
+            <div>
+                <p id="feedback-title" class="text-[10px] font-black uppercase tracking-widest"></p>
+                <p id="feedback-correct-val" class="text-lg font-black text-slate-900"></p>
+            </div>
+        </div>
+        
+        <div class="space-y-4 mb-6 overflow-y-auto flex-grow pr-2">
+            <div id="feedback-full-trans-box" class="hidden p-4 bg-rose-50 rounded-2xl border border-rose-100">
+                <p class="text-[9px] font-black text-rose-400 uppercase mb-1">Translation</p>
+                <p id="feedback-full-trans" class="text-sm text-rose-800 font-bold leading-relaxed"></p>
+            </div>
+            <div class="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+                <p class="text-[9px] font-black text-slate-400 uppercase mb-3 tracking-widest">Options Review</p>
+                <div id="feedback-breakdown" class="space-y-2"></div>
+            </div>
+            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <p class="text-[9px] font-black text-slate-400 uppercase mb-2">Grammar & Usage</p>
+                <p id="feedback-why" class="text-xs text-slate-600 leading-relaxed font-medium"></p>
+            </div>
+        </div>
+        
+        <button onclick="quizNextStep()" class="w-full py-5 bg-slate-900 text-white font-black rounded-2xl shadow-xl active:scale-[0.98] transition-all flex-shrink-0">Next Question</button>
+    </div>
+
+    <!-- Floating Word Picker Overlay -->
+    <div id="picker-overlay" class="picker-overlay" onclick="togglePicker(false)">
+        <div class="picker-sheet shadow-[0_-20px_50px_rgba(0,0,0,0.2)]" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="text-xl font-black text-slate-900 leading-none">Practice Deck</h3>
+                    <p class="text-[9px] font-black text-rose-500 uppercase tracking-widest mt-1">Full Curriculum Search</p>
+                </div>
+                <button onclick="togglePicker(false)" class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="relative mb-4">
+                <input type="text" id="picker-search-input" oninput="filterPicker()" placeholder="Search word or pinyin..." class="w-full p-4 pl-10 rounded-2xl bg-slate-50 border border-slate-100 text-sm font-bold outline-none focus:border-rose-400 transition-all">
+                <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            
+            <div id="picker-list" class="space-y-2 overflow-y-auto pr-2 pb-10" style="max-height: 60vh;">
+                <!-- Dynamically populated via appendPickerChunk -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <footer id="app-footer" class="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-100 px-6 pt-3 pb-8 z-40 max-w-[500px] mx-auto">
+        <div class="flex justify-between items-center">
+            <button onclick="switchTab('learn')" id="tab-learn" class="nav-link">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <span>Learn</span>
+            </button>
+            <button onclick="switchTab('write')" id="tab-write" class="nav-link">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l5 5"/><path d="m11 8 2 2"/></svg>
+                <span>Canvas</span>
+            </button>
+            <button onclick="switchTab('home')" id="tab-home" class="nav-link active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>Home</span>
+            </button>
+            <button onclick="switchTab('dict')" id="tab-dict" class="nav-link">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>Dict</span>
+            </button>
+            <button onclick="switchTab('profile')" id="tab-profile" class="nav-link">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Profile</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-32 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 transition-opacity duration-300 z-[100]">
+        <div id="toast-text" class="bg-slate-900/90 backdrop-blur text-white px-8 py-4 rounded-2xl font-bold shadow-2xl text-xs uppercase tracking-[0.2em]">Success!</div>
+    </div>
+</div>
+
+<script>
+    // --- PERSISTENT DATA & CONFIG ---
+    const config = {
+        standaloneFiles: ['vocabulary.json', '1.json', 'hsk3.0-json-main/hsk7-9.json'],
+        folders: [{ path: 'hsk3.0-json-main', prefix: 'hsk', count: 6 }]
+    };
+
+    const syllabus = [
+        { level: "HSK 1", title: "Novice", emoji: "🌱", target: 463, objectives: "Recognize basic expressions and introduce yourself.", skills: "Listening to slow dialogues, stroke order." },
+        { level: "HSK 2", title: "Elementary", emoji: "🌿", target: 739, objectives: "Handle basic daily tasks and describe routines.", skills: "Daily life role-play, short paragraphs." },
+        { level: "HSK 3", title: "Intermediate", emoji: "🌳", target: 955, objectives: "Communicate independently on familiar matters.", skills: "Natural-speed listening, basic storytelling." },
+        { level: "HSK 4", title: "Upper-Intermediate", emoji: "🏔️", target: 1200, objectives: "Discuss abstract topics and express clear opinions.", skills: "200+ character essays, formal distinction." },
+        { level: "HSK 5", title: "Advanced", emoji: "💎", target: 2500, objectives: "Read news and understand most media effortlessly.", skills: "600 character essays, authentic media." },
+        { level: "HSK 6", title: "Mastery", emoji: "🐉", target: 5000, objectives: "Fluency in complex professional and cultural contexts.", skills: "Academic discourse, tone control." },
+        { level: "HSK 7–9", title: "Expert", emoji: "🏮", target: 5601, objectives: "Operate at a near-native level in professional fields.", skills: "Research papers, professional presentations." }
+    ];
+
+    const HSK_QUIZ_TEMPLATES = {
+        "HSK 1": [
+            { prompt: "Complete the sentence", sentence: "我___中国。", pinyin: "Wǒ ___ Zhōngguó.", options: ["爱", "不", "那", "这"], target: "爱", mean: "I love China.", hint: "Subject + Verb + Object. '爱' (ài) is the verb for 'to love'." },
+            { prompt: "Response Choice", dialog: "A: 谢谢！\nB: ___", dialogPinyin: "A: Xièxiè!\nB: ___", options: ["不客气", "再见", "你好", "对不起"], target: "不客气", mean: "A: Thanks! B: You're welcome.", hint: "'不客气' is the standard polite reply to '谢谢'." }
+        ]
+    };
+
+    // --- STATE MANAGEMENT ---
+    let masterData = [];
+    let searchTimeout = null;
+    let currentSearchData = [];
+    let currentRenderCount = 0;
+
+    // Word Picker State
+    let pickerSearchData = [];
+    let pickerRenderCount = 0;
+
+    // Syllabus Focused View Scroll state
+    let hskQuizRenderCount = 0;
+    let hskUnitRenderCount = 0;
+    const SYLLABUS_CHUNK_SIZE = 30;
+
+    const RENDER_CHUNK_SIZE = 50;
+    let currentLessonQueue = [];
+    let currentLessonIndex = 0;
+    let currentLessonInfo = { hsk: null, sub: null }; 
+    let lastTab = 'home';
+    let currentTab = 'home';
+    let focusedHskIndex = null; 
+    let canvasMode = 'freeroam'; 
+    let learnedWords = JSON.parse(localStorage.getItem('mm_learned') || '[]');
+    let completedQuizzes = JSON.parse(localStorage.getItem('mm_completed_quizzes') || '{}');
+    let practiceProgress = JSON.parse(localStorage.getItem('mm_practice_progress') || '{}');
+
+    let quizState = { active: false, questions: [], currentIndex: 0, score: 0, level: null, quizIndex: null, correctChars: [], answered: false };
+
+    // --- APP INITIALIZATION ---
+    async function bootApp() {
+        document.getElementById('start-screen').style.display = 'none';
+        await fetchData();
+        const savedSession = localStorage.getItem('mm_active_session');
+        if (savedSession) {
+            const session = JSON.parse(savedSession);
+            const levelWords = masterData.filter(w => w.hsk === session.hsk);
+            const wordsPerChunk = 15;
+            const subWords = levelWords.slice((session.sub - 1) * wordsPerChunk, session.sub * wordsPerChunk);
+            if (subWords.length > 0) resumeLesson(subWords, session.hsk, session.sub, session.index);
+        }
+        
+        // Picker Scroll Listener
+        document.getElementById('picker-list').addEventListener('scroll', function() {
+            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 200) {
+                appendPickerChunk();
+            }
+        });
+    }
+
+    async function fetchData() {
+        for (let path of config.standaloneFiles) { await tryFetch(path, true); }
+        for (let folder of config.folders) {
+            for (let i = 1; i <= folder.count; i++) {
+                const path = `${folder.path}/${folder.prefix}${i}.json`;
+                await tryFetch(path, true);
+            }
+        }
+        renderContent();
+        setupWordOfTheDay();
+    }
+
+    async function tryFetch(path, silentFail = false) {
+        try {
+            const response = await fetch(path);
+            if (!response.ok) throw new Error();
+            const json = await response.json();
+            const filename = path.split('/').pop();
+            parseData(json, filename);
+            logStatus(filename, true);
+        } catch (e) {
+            const filename = path.split('/').pop();
+            if (!silentFail) logStatus(filename, false);
+        }
+    }
+
+    function parseData(data, filename) {
+        let identifier = (data.metadata?.identifier || filename.replace('.json', '')).toUpperCase();
+        let hskLevel = "Other";
+        if (identifier.includes('HSK1') || identifier === '1' || identifier === 'VOCABULARY') hskLevel = "HSK 1";
+        else if (identifier.includes('HSK2')) hskLevel = "HSK 2";
+        else if (identifier.includes('HSK3')) hskLevel = "HSK 3";
+        else if (identifier.includes('HSK4')) hskLevel = "HSK 4";
+        else if (identifier.includes('HSK5')) hskLevel = "HSK 5";
+        else if (identifier.includes('HSK6')) hskLevel = "HSK 6";
+        else if (identifier.includes('HSK7-9') || identifier.includes('HSK7_9')) hskLevel = "HSK 7–9";
+
+        const list = data.words || data.items || (Array.isArray(data) ? data : []);
+        const normalized = list.map(i => ({ char: i.simplified || i.hanzi || i.char || '', pinyin: i.pinyin || '', mean: i.english || i.mean || '', hsk: hskLevel }));
+        const map = new Map();
+        [...masterData, ...normalized].forEach(item => { if(item.char) map.set(item.char, item); });
+        masterData = Array.from(map.values());
+    }
+
+    function logStatus(name, ok) {
+        const container = document.getElementById('status-badges');
+        const badge = document.createElement('div');
+        badge.className = `w-1.5 h-1.5 rounded-full ${ok ? 'bg-green-400' : 'bg-rose-400'}`;
+        container.appendChild(badge);
+    }
+
+    function renderContent() {
+        renderSyllabusUI(); 
+        searchVocab();
+        updateProfileUI();
+    }
+
+    // --- NAVIGATION ---
+    function switchTab(id) {
+        if (id === currentTab) return;
+        
+        lastTab = currentTab;
+        currentTab = id;
+
+        if (id === 'write') {
+            if (canvasMode !== 'practice' && canvasMode !== 'dictionary') {
+                canvasMode = 'freeroam';
+                currentLessonQueue = [];
+            }
+        }
+
+        document.getElementById('app-header').style.display = (id === 'quiz') ? 'none' : 'block';
+
+        const sections = ['home', 'learn', 'write', 'dict', 'profile', 'quiz'];
+        sections.forEach(s => {
+            const el = document.getElementById(`section-${s}`);
+            const btn = document.getElementById(`tab-${s}`);
+            if (el) el.classList.add('hidden');
+            if (btn) btn.classList.remove('active');
+        });
+
+        document.getElementById(`section-${id}`).classList.remove('hidden');
+        if (document.getElementById(`tab-${id}`)) document.getElementById(`tab-${id}`).classList.add('active');
+        
+        const titles = { home: 'Learning Dashboard', learn: 'HSK', dict: 'Dictionary', profile: 'Statistics', write: 'Canvas' };
+        const subs = { home: 'Welcome Back', learn: 'Practice and Learn', dict: 'Search & Explore', profile: 'Your Progress', write: 'Practice Writing' };
+        document.getElementById('header-title').innerText = titles[id] || 'Mandarin Master';
+        document.getElementById('header-subtitle').innerText = subs[id] || 'Path to Fluency';
+
+        const footer = document.getElementById('app-footer');
+        if (id === 'quiz') {
+            footer.style.display = 'none';
+        } else if (id === 'write') {
+            footer.style.display = (canvasMode === 'freeroam') ? 'block' : 'none';
+        } else {
+            footer.style.display = 'block';
+        }
+
+        if (id === 'write') {
+            updateCanvasModeUI();
+            setTimeout(resizeCanvas, 100);
+            if (document.getElementById('current-char').innerText === '...') {
+                const random = masterData[Math.floor(Math.random() * masterData.length)];
+                if (random) selectChar(random.char, random.pinyin, random.mean);
+            }
+        }
+        if (id === 'learn') renderSyllabusUI();
+    }
+
+    function updateCanvasModeUI() {
+        const backBtn = document.getElementById('canvas-back-container');
+        const chooseBtn = document.getElementById('btn-canvas-choose');
+        const contextTag = document.getElementById('canvas-context-tag');
+        const footer = document.getElementById('app-footer');
+
+        backBtn.classList.add('hidden'); 
+        chooseBtn.classList.add('hidden');
+
+        if (canvasMode === 'practice') {
+            backBtn.classList.remove('hidden');
+            contextTag.innerText = `${currentLessonInfo.hsk} • Unit ${currentLessonInfo.sub} (${currentLessonIndex + 1}/${currentLessonQueue.length})`;
+            footer.style.display = 'none';
+        } else if (canvasMode === 'dictionary') {
+            backBtn.classList.remove('hidden');
+            contextTag.innerText = "Dictionary Entry";
+            footer.style.display = 'none';
+        } else {
+            chooseBtn.classList.remove('hidden');
+            contextTag.innerText = "Free Roam Mode";
+            footer.style.display = 'block';
+        }
+    }
+
+    // --- PICKER SEARCH & INFINITE SCROLL ---
+    function togglePicker(show) {
+        const overlay = document.getElementById('picker-overlay');
+        if (show) {
+            overlay.classList.add('open');
+            document.getElementById('picker-search-input').value = "";
+            populatePicker();
+        } else {
+            overlay.classList.remove('open');
+        }
+    }
+
+    function filterPicker() {
+        const q = document.getElementById('picker-search-input').value.toLowerCase().trim();
+        populatePicker(q);
+    }
+
+    function populatePicker(query = "") {
+        const list = document.getElementById('picker-list');
+        list.innerHTML = '';
+        pickerRenderCount = 0;
+        
+        pickerSearchData = query === "" 
+            ? masterData 
+            : masterData.filter(i => 
+                i.char.includes(query) || 
+                i.pinyin.toLowerCase().includes(query.toLowerCase()) || 
+                i.mean.toLowerCase().includes(query.toLowerCase())
+              );
+
+        appendPickerChunk();
+        list.scrollTop = 0;
+    }
+
+    function appendPickerChunk() {
+        const list = document.getElementById('picker-list');
+        const chunk = pickerSearchData.slice(pickerRenderCount, pickerRenderCount + RENDER_CHUNK_SIZE);
+        
+        chunk.forEach(item => {
+            const btn = document.createElement('button');
+            btn.className = "w-full p-5 bg-white border border-slate-100 rounded-3xl flex items-center justify-between active:scale-[0.98] transition-all shadow-sm mb-2";
+            btn.onclick = () => {
+                canvasMode = 'freeroam'; 
+                selectChar(item.char, item.pinyin, item.mean);
+                togglePicker(false);
+            };
+            btn.innerHTML = `
+                <div class="flex items-center gap-5 text-left">
+                    <span class="text-3xl font-black text-slate-800 leading-none">${createRuby(item.char, item.pinyin)}</span>
+                    <div>
+                        <p class="text-[9px] font-black text-rose-500 uppercase tracking-widest leading-tight">${item.hsk}</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter max-w-[140px] truncate">${item.mean}</p>
+                    </div>
+                </div>
+                <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                </div>
+            `;
+            list.appendChild(btn);
+        });
+        
+        pickerRenderCount += chunk.length;
+
+        if (pickerRenderCount === 0) {
+            list.innerHTML = `<div class="p-10 text-center text-slate-300 text-xs font-bold uppercase tracking-widest">No results found</div>`;
+        }
+    }
+
+    function getProgStyle(perc) {
+        if (perc === 0) return { bg: 'bg-slate-50', text: 'text-slate-400', border: 'border-slate-100' };
+        if (perc < 40) return { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100' };
+        if (perc < 75) return { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100' };
+        return { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-100' };
+    }
+
+    // Toggling the focused view in the syllabus
+    function toggleHskFocus(index) {
+        if (focusedHskIndex === index) {
+            focusedHskIndex = null; // Close
+        } else {
+            focusedHskIndex = index; // Focus
+            hskQuizRenderCount = 0;
+            hskUnitRenderCount = 0;
+        }
+        renderSyllabusUI();
+        document.getElementById('main-content').scrollTop = 0;
+    }
+
+    function renderSyllabusUI() {
+        const container = document.getElementById('learn-modules');
+        container.innerHTML = '';
+        
+        syllabus.forEach((chap, index) => {
+            if (focusedHskIndex !== null && focusedHskIndex !== index) return;
+
+            const levelWords = masterData.filter(w => w.hsk === chap.level);
+            const learnedInLevel = levelWords.filter(w => learnedWords.includes(w.char)).length;
+            const progress = levelWords.length > 0 ? (learnedInLevel / levelWords.length) * 100 : 0;
+            const isFocused = focusedHskIndex === index;
+
+            const div = document.createElement('div');
+            div.className = "glass-card overflow-hidden transition-all duration-300";
+            div.innerHTML = `
+                <button onclick="toggleHskFocus(${index})" class="w-full p-6 text-left hover:bg-slate-50 transition-colors">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">${chap.emoji}</span>
+                            <div>
+                                <h3 class="text-lg font-black text-slate-800 leading-tight">${chap.level}</h3>
+                                <p class="text-[10px] font-black text-rose-500 uppercase tracking-widest">${chap.title}</p>
+                            </div>
+                        </div>
+                        <span class="text-slate-300 transition-transform ${isFocused ? 'rotate-180' : ''}">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </span>
+                    </div>
+                    <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-rose-500 rounded-full transition-all duration-700" style="width: ${progress}%"></div></div>
+                    <div class="flex justify-between mt-2">
+                        <p class="text-[9px] font-black text-slate-400 uppercase">${learnedInLevel} / ${levelWords.length} Words</p>
+                        <p class="text-[9px] font-black text-rose-500 uppercase">${Math.round(progress)}%</p>
+                    </div>
+                </button>
+                <div class="module-content ${isFocused ? 'open' : ''}">
+                    <div class="p-6 pt-0 space-y-6">
+                        <div class="space-y-1">
+                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-widest">Focus</h4>
+                            <p class="text-xs text-slate-500 font-medium leading-relaxed">${chap.objectives}</p>
+                        </div>
+                        <div class="space-y-3">
+                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-widest">Mastery Quizzes (${Math.ceil(levelWords.length / 10)})</h4>
+                            <div class="grid grid-cols-5 gap-2" id="quiz-grid-${index}"></div>
+                        </div>
+                        <div class="pt-4 border-t border-slate-50">
+                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-3">Practice Units (${Math.ceil(levelWords.length / 15)})</h4>
+                            <div class="grid grid-cols-1 gap-2" id="practice-grid-${index}"></div>
+                        </div>
+                        <button onclick="toggleHskFocus(${index})" class="w-full py-4 text-[10px] font-black uppercase text-slate-300 tracking-widest border-t border-slate-50 mt-4">Close Level</button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+
+            if (isFocused) {
+                appendHskChunks(chap, levelWords, index);
+            }
+        });
+    }
+
+    function appendHskChunks(chap, levelWords, index) {
+        const qGrid = document.getElementById(`quiz-grid-${index}`);
+        const pGrid = document.getElementById(`practice-grid-${index}`);
+        if (!qGrid || !pGrid) return;
+
+        const numQuizzes = Math.ceil(levelWords.length / 10);
+        const quizChunkLimit = Math.min(hskQuizRenderCount + SYLLABUS_CHUNK_SIZE, numQuizzes);
+        
+        for(let q = hskQuizRenderCount + 1; q <= quizChunkLimit; q++) {
+            const quizKey = `${chap.level}_Q${q}`;
+            const savedScore = completedQuizzes[quizKey];
+            const quizPerc = savedScore !== undefined ? (typeof savedScore === 'number' ? (savedScore / 10) * 100 : 100) : 0;
+            const style = getProgStyle(quizPerc);
+            const qBtn = document.createElement('button');
+            qBtn.className = `h-12 rounded-xl font-black text-[10px] transition-all border ${style.bg} ${style.text} ${style.border} flex flex-col items-center justify-center leading-tight`;
+            qBtn.innerHTML = `Q${q}${savedScore !== undefined ? `<span class="text-[9px] mt-0.5 opacity-80">${Math.round(quizPerc)}%</span>` : ''}`;
+            qBtn.onclick = () => initQuiz(chap.level, q);
+            qGrid.appendChild(qBtn);
+        }
+        hskQuizRenderCount = quizChunkLimit;
+
+        const numUnits = Math.ceil(levelWords.length / 15);
+        const unitChunkLimit = Math.min(hskUnitRenderCount + SYLLABUS_CHUNK_SIZE, numUnits);
+
+        for(let l = hskUnitRenderCount; l < unitChunkLimit; l++) {
+            const subWords = levelWords.slice(l * 15, (l + 1) * 15);
+            const practiceKey = `${chap.level}_Unit${l + 1}`;
+            const savedProgress = practiceProgress[practiceKey] || 0;
+            const unitPerc = (savedProgress / subWords.length) * 100;
+            const style = getProgStyle(unitPerc);
+            const btn = document.createElement('button');
+            btn.className = `w-full p-4 rounded-2xl font-bold text-xs flex justify-between items-center active:opacity-80 transition-all border ${style.bg} ${style.text} ${style.border}`;
+            btn.innerHTML = `
+                <div class="flex items-center gap-2"><span>Unit ${l + 1}</span>${unitPerc > 0 ? `<span class="text-[9px] px-1.5 py-0.5 rounded-md bg-white/50 border border-current opacity-70">${Math.round(unitPerc)}%</span>` : ''}</div>
+                <span class="px-2 py-0.5 bg-white/40 rounded-md text-[9px] font-black uppercase opacity-60">${subWords.length} Words</span>
+            `;
+            btn.onclick = () => startLesson(subWords, chap.level, l + 1);
+            pGrid.appendChild(btn);
+        }
+        hskUnitRenderCount = unitChunkLimit;
+    }
+
+    // --- QUIZ LOGIC ---
+    function initQuiz(levelName, quizIndex) {
+        const levelWords = masterData.filter(w => w.hsk === levelName);
+        if (levelWords.length < 1) return showToast("No Data Found");
+        const startIndex = (quizIndex - 1) * 10;
+        const localPool = levelWords.slice(startIndex, startIndex + 10);
+        const quizItems = [];
+        localPool.forEach(word => {
+            quizItems.push(generateQuestion(word, levelWords));
+        });
+        quizState = { active: true, questions: quizItems.sort(() => 0.5 - Math.random()), currentIndex: 0, score: 0, level: levelName, quizIndex: quizIndex, correctChars: [], answered: false };
+        switchTab('quiz');
+        renderQuizQuestion();
+    }
+
+    function generateQuestion(word, pool) {
+        const types = ['hanzi_to_mean', 'mean_to_hanzi', 'pinyin_to_hanzi'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        const distractors = pool.filter(w => w.char !== word.char).sort(() => 0.5 - Math.random()).slice(0, 3);
+        let prompt, question, pinyin, correctVal, hint, options = [];
+        if (type === 'hanzi_to_mean') {
+            prompt = "Translate word"; question = word.char; pinyin = word.pinyin; correctVal = word.mean;
+            hint = `'${word.char}' translates to '${word.mean.split(',')[0]}'.`;
+            options = [word.mean, ...distractors.map(d => d.mean)];
+        } else if (type === 'mean_to_hanzi') {
+            prompt = "Identify Hanzi"; question = word.mean; pinyin = ""; correctVal = word.char;
+            hint = `The concept of '${word.mean.split(',')[0]}' is written as '${word.char}'.`;
+            options = [word.char, ...distractors.map(d => d.char)];
+        } else {
+            prompt = "Phonetic Match"; question = word.pinyin; pinyin = ""; correctVal = word.char;
+            hint = `The sound '${word.pinyin}' corresponds to the character '${word.char}'.`;
+            options = [word.char, ...distractors.map(d => d.char)];
+        }
+        return { type, prompt, question, pinyin, correctVal, hint, word, options: options.sort(() => 0.5 - Math.random()) };
+    }
+
+    function renderQuizQuestion() {
+        const q = quizState.questions[quizState.currentIndex];
+        quizState.answered = false;
+        document.getElementById('quiz-feedback-sheet').classList.remove('open');
+        document.getElementById('quiz-results').classList.add('hidden');
+        document.getElementById('quiz-question-container').classList.remove('hidden');
+        document.getElementById('quiz-options').classList.remove('hidden');
+        document.getElementById('quiz-hint-box').classList.add('hidden');
+        document.getElementById('main-content').scrollTop = 0;
+        const dotContainer = document.getElementById('quiz-dots');
+        dotContainer.innerHTML = '';
+        for(let i=0; i<quizState.questions.length; i++){
+            const dot = document.createElement('div');
+            dot.className = `prog-dot ${i <= quizState.currentIndex ? 'active' : ''}`;
+            dotContainer.appendChild(dot);
+        }
+        document.getElementById('quiz-prompt').innerText = q.prompt;
+        const qBox = document.getElementById('quiz-question');
+        const dArea = document.getElementById('quiz-dialog-area');
+        dArea.classList.add('hidden'); qBox.classList.remove('hidden');
+        if (q.type === 'dialog') {
+            qBox.classList.add('hidden'); dArea.classList.remove('hidden'); dArea.innerHTML = '';
+            q.question.split('\n').forEach((line, idx) => {
+                const bubble = document.createElement('div');
+                bubble.className = "p-4 bg-slate-50 rounded-2xl border border-slate-100 font-bold text-slate-700 text-left";
+                bubble.innerHTML = createRuby(line, q.pinyin?.split('\n')[idx] || "");
+                dArea.appendChild(bubble);
+            });
+        } else if (q.type === 'sentence_fill') {
+            qBox.innerHTML = createRuby(q.question, q.pinyin || "");
+            qBox.style.fontSize = '1.75rem';
+        } else {
+            if (q.type === 'hanzi_to_mean') {
+                qBox.innerHTML = createRuby(q.question, q.pinyin); qBox.style.fontSize = '5rem';
+            } else {
+                qBox.innerText = q.question; qBox.style.fontSize = q.question.length > 20 ? '1.5rem' : '2.5rem';
+            }
+        }
+        const optionsContainer = document.getElementById('quiz-options');
+        optionsContainer.innerHTML = '';
+        q.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = "quiz-option";
+            let display = opt;
+            if (q.type !== 'hanzi_to_mean') {
+                const match = masterData.find(m => m.char === opt);
+                display = match ? createRuby(opt, match.pinyin) : opt;
+                btn.style.fontSize = '1.75rem';
+            } else {
+                btn.style.fontSize = opt.length > 30 ? '0.8rem' : '1rem';
+            }
+            btn.innerHTML = `<div>${display}</div>`;
+            btn.onclick = () => handleQuizAnswer(opt, btn);
+            optionsContainer.appendChild(btn);
+        });
+    }
+
+    function handleQuizAnswer(selected, btn) {
+        if (quizState.answered) return;
+        quizState.answered = true;
+        const q = quizState.questions[quizState.currentIndex];
+        const isCorrect = selected === q.correctVal;
+        if (isCorrect) {
+            btn.classList.add('correct'); quizState.score++;
+            if (q.word) quizState.correctChars.push(q.word.char);
+            document.getElementById('feedback-icon').innerHTML = "✨";
+            document.getElementById('feedback-icon').className = "w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm bg-green-100 text-green-600";
+            document.getElementById('feedback-title').innerText = "Excellent!";
+            document.getElementById('feedback-title').className = "text-[10px] font-black uppercase tracking-widest text-green-600";
+        } else {
+            btn.classList.add('wrong');
+            document.getElementById('feedback-icon').innerHTML = "🔎";
+            document.getElementById('feedback-icon').className = "w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm bg-rose-100 text-rose-600";
+            document.getElementById('feedback-title').innerText = "Look Closer";
+            document.getElementById('feedback-title').className = "text-[10px] font-black uppercase tracking-widest text-rose-600";
+        }
+        document.getElementById('feedback-correct-val').innerText = q.correctVal;
+        document.getElementById('feedback-why').innerText = q.hint;
+        if (q.mean || q.word?.mean) {
+            document.getElementById('feedback-full-trans-box').classList.remove('hidden');
+            document.getElementById('feedback-full-trans').innerText = q.mean || q.word?.mean || "";
+        } else {
+            document.getElementById('feedback-full-trans-box').classList.add('hidden');
+        }
+        const breakdown = document.getElementById('feedback-breakdown');
+        breakdown.innerHTML = '';
+        q.options.forEach(opt => {
+            const row = document.createElement('div');
+            row.className = "flex justify-between items-center py-2 border-b border-slate-50 last:border-0";
+            let label = opt, meaning = "";
+            const isTarget = opt === q.correctVal, isUserPick = opt === selected;
+            if (q.type !== 'hanzi_to_mean') {
+                const match = masterData.find(m => m.char === opt);
+                label = match ? `${opt} (${match.pinyin})` : opt;
+                meaning = match ? match.mean.split(',')[0] : "";
+            }
+            row.innerHTML = `<div class="flex items-center gap-2"><span class="text-xs ${isTarget ? 'text-green-600' : (isUserPick ? 'text-rose-500' : 'text-slate-700')} font-bold">${label}</span>${isTarget ? '✅' : (isUserPick ? '❌' : '')}</div><span class="text-[9px] text-slate-400 font-medium uppercase text-right ml-4">${meaning}</span>`;
+            breakdown.appendChild(row);
+        });
+        document.getElementById('quiz-feedback-sheet').classList.add('open');
+    }
+
+    function quizNextStep() {
+        quizState.currentIndex++;
+        if (quizState.currentIndex < quizState.questions.length) renderQuizQuestion();
+        else showQuizResults();
+    }
+
+    function showQuizResults() {
+        document.getElementById('quiz-question-container').classList.add('hidden');
+        document.getElementById('quiz-options').classList.add('hidden');
+        document.getElementById('quiz-feedback-sheet').classList.remove('open');
+        document.getElementById('quiz-results').classList.remove('hidden');
+        document.getElementById('final-score').innerText = `${quizState.score}/${quizState.questions.length}`;
+        const quizKey = `${quizState.level}_Q${quizState.quizIndex}`;
+        const oldScore = completedQuizzes[quizKey] || 0;
+        if (quizState.score >= oldScore) {
+            completedQuizzes[quizKey] = quizState.score;
+            localStorage.setItem('mm_completed_quizzes', JSON.stringify(completedQuizzes));
+        }
+        quizState.correctChars.forEach(char => { if (!learnedWords.includes(char)) learnedWords.push(char); });
+        localStorage.setItem('mm_learned', JSON.stringify(learnedWords));
+        updateProfileUI(); renderSyllabusUI();
+    }
+
+    function exitQuiz() {
+        if (confirm("Are you sure you want to exit? Performance until now will be recorded.")) {
+            const quizKey = `${quizState.level}_Q${quizState.quizIndex}`;
+            const oldScore = completedQuizzes[quizKey] || 0;
+            if (quizState.score >= oldScore) {
+                completedQuizzes[quizKey] = quizState.score;
+                localStorage.setItem('mm_completed_quizzes', JSON.stringify(completedQuizzes));
+            }
+            quizState.correctChars.forEach(char => { if (!learnedWords.includes(char)) learnedWords.push(char); });
+            localStorage.setItem('mm_learned', JSON.stringify(learnedWords));
+            updateProfileUI(); renderSyllabusUI(); switchTab('learn');
+        }
+    }
+
+    function exitCanvas() { 
+        if (canvasMode === 'practice') {
+            localStorage.removeItem('mm_active_session');
+            switchTab('learn');
+        } else if (canvasMode === 'dictionary') {
+            switchTab('dict');
+        } else {
+            switchTab('home'); 
+        }
+        canvasMode = 'freeroam';
+    }
+
+    function startLesson(words, levelName, subNum) {
+        currentLessonQueue = words; 
+        const practiceKey = `${levelName}_Unit${subNum}`;
+        currentLessonIndex = practiceProgress[practiceKey] || 0;
+        if (currentLessonIndex >= words.length) currentLessonIndex = 0;
+        currentLessonInfo = { hsk: levelName, sub: subNum };
+        canvasMode = 'practice';
+        saveActiveSession();
+        const word = words[currentLessonIndex];
+        selectChar(word.char, word.pinyin, word.mean, true);
+    }
+
+    function resumeLesson(words, levelName, subNum, index) {
+        currentLessonQueue = words; currentLessonIndex = index; currentLessonInfo = { hsk: levelName, sub: subNum };
+        canvasMode = 'practice';
+        const word = words[index] || words[0];
+        selectChar(word.char, word.pinyin, word.mean, true);
+    }
+
+    function saveActiveSession() {
+        if (!currentLessonInfo.hsk) return;
+        localStorage.setItem('mm_active_session', JSON.stringify({ hsk: currentLessonInfo.hsk, sub: currentLessonInfo.sub, index: currentLessonIndex }));
+        const practiceKey = `${currentLessonInfo.hsk}_Unit${currentLessonInfo.sub}`;
+        practiceProgress[practiceKey] = currentLessonIndex;
+        localStorage.setItem('mm_practice_progress', JSON.stringify(practiceProgress));
+    }
+
+    function nextWord() {
+        const curChar = document.getElementById('current-char').innerText;
+        if (curChar !== '...') {
+            if (!learnedWords.includes(curChar)) { learnedWords.push(curChar); localStorage.setItem('mm_learned', JSON.stringify(learnedWords)); updateProfileUI(); }
+        }
+        if (canvasMode === 'practice') {
+            if (currentLessonIndex < currentLessonQueue.length - 1) {
+                currentLessonIndex++; saveActiveSession();
+                const next = currentLessonQueue[currentLessonIndex];
+                selectChar(next.char, next.pinyin, next.mean, true);
+                showToast("Perfect!");
+            } else { 
+                const practiceKey = `${currentLessonInfo.hsk}_Unit${currentLessonInfo.sub}`;
+                practiceProgress[practiceKey] = currentLessonQueue.length;
+                localStorage.setItem('mm_practice_progress', JSON.stringify(practiceProgress));
+                exitCanvas(); showToast("Unit Finished!"); 
+            }
+        } else {
+            const idx = Math.floor(Math.random() * masterData.length);
+            const next = masterData[idx];
+            if (next) selectChar(next.char, next.pinyin, next.mean);
+            showToast("Next Word");
+        }
+    }
+
+    function selectChar(c, p, m, internalCall = false) {
+        document.getElementById('current-char').innerText = c;
+        document.getElementById('current-pinyin').innerText = p;
+        document.getElementById('current-mean').innerText = m;
+        if (!internalCall) {
+            if (currentTab === 'dict') canvasMode = 'dictionary';
+            else if (currentTab === 'write') canvasMode = 'freeroam';
+            currentLessonQueue = []; currentLessonInfo = { hsk: null, sub: null };
+            localStorage.removeItem('mm_active_session');
+        }
+        switchTab('write'); clearCanvas(); playVoice(c); updateCanvasModeUI();
+    }
+
+    function debouncedSearch() {
+        if (searchTimeout) clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => { searchVocab(); }, 250);
+    }
+
+    function searchVocab() {
+        const q = document.getElementById('search-input').value.toLowerCase().trim();
+        currentSearchData = q === "" ? masterData : masterData.filter(item => item.char.includes(q) || item.pinyin.includes(q) || item.mean.includes(q));
+        const list = document.getElementById('dictionary-list');
+        list.innerHTML = ''; currentRenderCount = 0;
+        document.getElementById('search-meta').innerText = `${currentSearchData.length} matches found`;
+        appendDictionaryChunk();
+    }
+
+    function appendDictionaryChunk() {
+        const list = document.getElementById('dictionary-list');
+        const chunk = currentSearchData.slice(currentRenderCount, currentRenderCount + RENDER_CHUNK_SIZE);
+        chunk.forEach(item => {
+            const el = document.createElement('div');
+            el.className = "flex items-center justify-between p-6 bg-white border border-slate-100 rounded-[28px] cursor-pointer hover:bg-rose-50/50 shadow-sm active:scale-[0.98] transition-all mb-2";
+            el.onclick = () => { canvasMode = 'dictionary'; selectChar(item.char, item.pinyin, item.mean); };
+            el.innerHTML = `<div class="flex items-center gap-5"><span class="text-3xl font-black text-slate-800 font-bold">${createRuby(item.char, item.pinyin)}</span><div class="max-w-[140px]"><p class="text-[10px] text-slate-400 font-bold uppercase truncate">${item.mean}</p></div></div><div class="text-[8px] font-black bg-slate-100 px-3 py-1.5 rounded-lg text-slate-400 uppercase tracking-widest">${item.hsk}</div>`;
+            list.appendChild(el);
+        });
+        currentRenderCount += chunk.length;
+    }
+
+    function showToast(text) { const toast = document.getElementById('toast'); document.getElementById('toast-text').innerText = text; toast.style.opacity = '1'; setTimeout(() => toast.style.opacity = '0', 1500); }
+    function createRuby(hanzi, pinyin) { if (!pinyin) return hanzi; return `<ruby>${hanzi}<rt>${pinyin}</rt></ruby>`; }
+    function playVoice(text) { if (!window.speechSynthesis) return; window.speechSynthesis.cancel(); const msg = new SpeechSynthesisUtterance(text); msg.lang = 'zh-CN'; msg.rate = 0.7; window.speechSynthesis.speak(msg); }
+
+    function updateProfileUI() {
+        document.getElementById('stat-learned').innerText = learnedWords.length;
+        const pp = document.getElementById('progress-container');
+        pp.innerHTML = '<h4 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Level Statistics</h4>';
+        let highest = "HSK 1";
+        syllabus.forEach(chap => {
+            const lw = masterData.filter(w => w.hsk === chap.level);
+            const count = lw.filter(w => learnedWords.includes(w.char)).length;
+            const perc = lw.length > 0 ? (count / lw.length) * 100 : 0;
+            if (perc > 10) highest = chap.level;
+            const row = document.createElement('div');
+            row.className = "space-y-2 mb-4";
+            row.innerHTML = `<div class="flex justify-between items-center text-[10px] font-black uppercase tracking-widest"><span class="text-slate-900">${chap.level} <span class="text-slate-400 ml-2">(${count}/${lw.length})</span></span><span class="text-rose-500">${Math.round(perc)}%</span></div><div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-rose-500 rounded-full" style="width: ${perc}%"></div></div>`;
+            pp.appendChild(row);
+        });
+        document.getElementById('stat-level').innerText = highest;
+        document.getElementById('profile-level-tag').innerText = highest;
+        const totalPerc = (learnedWords.length / masterData.length) * 100;
+        let status = totalPerc > 70 ? "Master" : totalPerc > 40 ? "Scholar" : totalPerc > 15 ? "Adept" : "Novice";
+        document.getElementById('mastery-status').innerText = status;
+    }
+
+    function setupWordOfTheDay() {
+        if (masterData.length === 0) return;
+        const w = masterData[Math.floor(Math.random() * Math.min(masterData.length, 100))];
+        document.getElementById('wotd-char').innerText = w.char;
+        document.getElementById('wotd-pinyin').innerText = w.pinyin;
+        document.getElementById('wotd-mean').innerText = w.mean;
+        document.getElementById('wotd-bg').innerText = w.char;
+        document.getElementById('wotd-card').onclick = () => { canvasMode = 'freeroam'; selectChar(w.char, w.pinyin, w.mean); };
+    }
+
+    function showQuizHint() { const q = quizState.questions[quizState.currentIndex]; const hb = document.getElementById('quiz-hint-box'); hb.innerText = q.hint; hb.classList.toggle('hidden'); }
+
+    const canvas = document.getElementById('drawing-canvas');
+    const ctx = canvas.getContext('2d');
+    let active = false, lastX = 0, lastY = 0;
+    function resizeCanvas() { const container = canvas.parentElement; canvas.width = container.clientWidth; canvas.height = container.clientHeight; ctx.strokeStyle = '#334155'; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 14; }
+    function getMousePos(e) { const rect = canvas.getBoundingClientRect(); const cx = e.touches ? e.touches[0].clientX : e.clientX; const cy = e.touches ? e.touches[0].clientY : e.clientY; return { x: cx - rect.left, y: cy - rect.top }; }
+    canvas.addEventListener('mousedown', (e) => { active = true; const p = getMousePos(e); [lastX, lastY] = [p.x, p.y]; });
+    canvas.addEventListener('mousemove', (e) => { if (!active) return; e.preventDefault(); const p = getMousePos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); [lastX, lastY] = [p.x, p.y]; });
+    window.addEventListener('mouseup', () => active = false);
+    canvas.addEventListener('touchstart', (e) => { active = true; const p = getMousePos(e); [lastX, lastY] = [p.x, p.y]; }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => { if (!active) return; e.preventDefault(); const p = getMousePos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); [lastX, lastY] = [p.x, p.y]; }, {passive: false});
+    canvas.addEventListener('touchend', () => active = false);
+    function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+    // Unified Scroll Listener
+    document.getElementById('main-content').addEventListener('scroll', function() {
+        // Dict infinite scroll
+        if (!document.getElementById('section-dict').classList.contains('hidden') && this.scrollTop + this.clientHeight >= this.scrollHeight - 300) {
+            appendDictionaryChunk();
+        }
+        // Learn (Syllabus) focused infinite scroll
+        if (currentTab === 'learn' && focusedHskIndex !== null) {
+            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 400) {
+                const chap = syllabus[focusedHskIndex];
+                const levelWords = masterData.filter(w => w.hsk === chap.level);
+                appendHskChunks(chap, levelWords, focusedHskIndex);
+            }
+        }
+    });
+
+</script>
+</body>
+</html>
